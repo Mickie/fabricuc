@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+ <html>
+<head>
+    <meta charset="utf-8">
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <style>
+        html,body{
+            margin:0;
+        }
+    </style>
+</head>
+<body>
+<div id="ctrl" style="position:absolute;top:0;left:0;width:0;height:0;display:none;border:1px solid blue;"></div>
+<div id="container" style="position:absolute;width:500px;height:300px;left:100px;top:100px;border:1px solid black;">
+    <canvas id="canvas" width="500" height="300"></canvas>
+</div>
+<canvas id = "tmpCanvas" width ="500" height ="300" style="position:absolute;left:100px;top:410px;border:1px solid black;"></canvas>
+<canvas id = "tmpCanvas1" width ="500" height ="300" style="position:absolute;left:100px;top:720px;border:1px solid black;"></canvas>
+<script>
+    var c= document.getElementById('canvas');
+    var c_context= c.getContext('2d');
+    var container = document.getElementById('container');
+    var ctrlBox = document.getElementById('ctrl');
+    var ctrlBoxPos = {};
+    var text_c = document.getElementById('tmpCanvas');
+    var text_c_context=text_c.getContext('2d');
+    var text_c1 = document.getElementById('tmpCanvas1');
+    var text_c_context1=text_c1.getContext('2d');
+
+    function draw(){//arc
+        //general
+        c_context.fillStyle="yellow";
+        c_context.lineWidth = 0.5;
+        c_context.strokeStyle="black";
+        var startX=100,
+            startY=100;
+        c_context.beginPath();
+        c_context.arc(startX,startY,50,0,1.5*Math.PI,false);
+        c_context.fill();
+        c_context.closePath();
+        c_context.stroke();
+    }
+
+    function drawImg(img,imgSelectArea,zoomRatio,ctx){
+        var imgWidth = img.width,
+            imgHeight = img.height,
+            canvasWidth = ctx.canvas.width,
+            canvasHeight = ctx.canvas.height,
+            dw = scaleCanvasImgRatio(imgWidth,imgHeight,canvasWidth,canvasHeight).width,
+            dh = scaleCanvasImgRatio(imgWidth,imgHeight,canvasWidth,canvasHeight).height;
+        if(typeof(imgSelectArea)!=='string'){
+            if(zoomRatio == 1){//cut  image
+                var sx = imgSelectArea.x,
+                    sy = imgSelectArea.y,
+                    sw = imgSelectArea.w,
+                    sh = imgSelectArea.h,
+                    dx = 0,
+                    dy = 0;
+                var imgData = ctx.getImageData(sx,sy,sw,sh);
+                ctx.putImageData(imgData,dx,dy);
+            }else{//zoomInOut
+                var sw = (dw*zoomRatio).toFixed(),
+                    sh = (dh*zoomRatio).toFixed(),
+                    sx = ((imgSelectArea.x*zoomRatio)+(1-zoomRatio)*dw/2).toFixed(),
+                    sy = ((imgSelectArea.y*zoomRatio)+(1-zoomRatio)*dh/2).toFixed(),
+                    dx = 0,
+                    dy = 0;
+                var imgData = ctx.getImageData(sx,sy,sw,sh);
+                ctx.putImageData(imgData,dx,dy,dw,dh);
+            }
+        }else{
+           var sx = 0,
+               sy = 0,
+               sw = imgWidth,
+               sh = imgHeight,
+               dx = 0,
+               dy = 0;
+           ctx.drawImage(img,sx,sy,sw,sh,dx,dy,dw,dh);
+        }
+
+        ctx.canvas.width = dw;
+        ctx.canvas.height = dh;
+    }
+
+
+
+    function scaleCanvasImgRatio(oImgW,oImgH,canvasW,canvasH){
+        var canvasRatio = {};
+        if(oImgW>oImgH){//horizontal
+            canvasRatio.width = canvasW;
+            canvasRatio.height = (canvasW*oImgH/oImgW).toFixed();
+        }else{//portrait
+            canvasRatio.height = canvasH;
+            canvasRatio.width = (canvasH*oImgW/oImgH).toFixed();
+        }
+        return canvasRatio;
+    }
+
+    function getBoundingPos(){
+        var out = container.getBoundingClientRect();
+        return {
+            'x':out.left,
+            'y':out.top,
+            'w':out.right-out.left,
+            'h':out.bottom-out.top
+        };
+    }
+
+    function drawGrid(xStep,yStep){
+         var c_width= c_context.canvas.width,
+             c_height= c_context.canvas.height,
+             LINEWIDTH=0.5;
+         c_context.strokeStyle="lightgray";
+         c_context.lineWidth = LINEWIDTH;
+
+         for( var i= 0.5;i<c_width;i+=xStep){
+             c_context.moveTo(i,0);
+             c_context.lineTo(i,c_height);
+             c_context.stroke();
+         }
+         for( var i= 0.5;i<c_height;i+=yStep){
+             c_context.moveTo(0,i);
+             c_context.lineTo(c_width,i);
+             c_context.stroke();
+         }
+    }
+
+    //ctrlBox
+    function ctrlBoxShow(){
+         ctrlBox.style.display='inline-block';
+         ctrlBox.style.top=ctrlBoxPos.top+'px';
+         ctrlBox.style.left= ctrlBox.left+'px';
+    }
+
+    function ctrlBoxHide(){
+        ctrlBox.style.display='none';
+        resetCtrlBoxPos();
+    }
+
+    function stretchCtrlBox(){
+
+    }
+
+    function moveCtrlBox(){
+        ctrlBox.style.top = ctrlBoxPos.top+'px';
+        ctrlBox.style.left = ctrlBoxPos.left+'px';
+        ctrlBox.style.width = (ctrlBoxPos.right - ctrlBoxPos.left)+'px';
+        ctrlBox.style.height = (ctrlBoxPos.bottom - ctrlBoxPos.top)+'px';
+    }
+
+    function resetCtrlBoxPos(){
+        ctrlBoxPos= {
+            'top':0,
+            'left':0,
+            'right':0,
+            'bottom':0
+        };
+    }
+
+    //canvas functionality
+    var Movement = function(){
+        this.isSingleTouch = function(e){
+            return e.touches.length == 1;
+        }
+        this.isDoubleTouch = function (e){
+            return e.touches.length == 2;
+        }
+
+        this.isDrag = function(e){
+            return e.touches.length == 1 && e.changedTouches.length == 1;
+        }
+        this.isPinch = function(e){
+            return e.touches.length ==2 && e.changedTouches.length == 2;
+        }
+    }
+
+    var start_sprit = [];
+    var end_sprit = [];
+
+    function startHandler(e){
+        var move = new Movement();
+        if(move.isSingleTouch(e)){
+            ctrlBoxPos.left = e.touches.item(0).clientX;
+            ctrlBoxPos.top =  e.touches.item(0).clientY;
+            ctrlBoxShow();
+        }
+        if(move.isDoubleTouch(e)){
+            ctrlBoxHide();
+            var touch1 = e.touches.item(0);
+            var touch2 = e.touches.item(1);
+            start_sprit[0] = touch1;
+            start_sprit[1] = touch2;
+        }
+    }
+    function moveHandler(e){
+        var move = new Movement();
+        if(move.isDrag(e)){
+            var curX = e.changedTouches[0].clientX;
+            var curY = e.changedTouches[0].clientY;
+            var width = Math.abs(curX-ctrlBoxPos.left);
+            var height = Math.abs(curY-ctrlBoxPos.top);
+            ctrlBoxPos.left = (curX < ctrlBoxPos.left )? curX : ctrlBoxPos.left ;
+            ctrlBoxPos.top = (curY < ctrlBoxPos.top)? curY : ctrlBoxPos.top;
+            ctrlBoxPos.right = ctrlBoxPos.left + width;
+            ctrlBoxPos.height = ctrlBoxPos.top + height;
+            moveCtrlBox();
+        }
+        if(move.isPinch()){
+            ctrlBoxHide();
+            var touch1= e.touches.item(0);
+            var touch2 = e.touches.item(1);
+            end_sprit[0] = touch1;
+            end_sprit[1] = touch2;
+            var initDistance = absDistance(start_sprit[0],start_sprit[1]);
+            var moveDistance = absDistance(end_sprit[0],end_sprit[1]);
+            var changedDistance = moveDistance - initDistance;
+            var zoomInOut = (changedDistance > 0)? '1' : '0';
+            var MAXZOOMINRatio = 3;
+            var MINZOOMOUTRatio = 1;
+            c_context.clearRect(0,0,c_context.canvas.width,c_context.canvas.height);//clear before redraw
+            var imgSelectArea = {};
+            //drawImg(img,imgSelectArea,zoomRatio,ctx);
+            //zoomIn
+
+
+            //zoomOut
+
+
+        }
+
+        //private
+        function absDistance(p1,p2){
+            var x1=p1.clientX,
+                y1=p1.clientY,
+                x2=p2.clientX,
+                y2=p2.clientY;
+            return Math.sqrt(Math.pow(x1-x2,2)+Math.pow(y1-y2,2));//0-400
+        }
+    }
+
+    function endHandler(e){
+        //ctrlBox hide
+        //reset ctrlBox pos
+        //canvas draw
+    }
+
+    //c.addEventListener('touchstart',startHandler,false);
+    //c.addEventListener('touchmove',moveHandler,false);
+    //c.addEventListener('touchend',endHandler,false);
+    //init
+    $(function(){
+        drawGrid(10,10);
+        var img = new Image();
+        img.src="images/benefit.png";
+        img.id="myImg";
+        //img.onload = function(){
+        //    drawImg(this,'whole');
+        //}
+        img.onload = function(){
+            var oWidth = this.width;
+            var oHeight = this.height;
+            var ratio = 0.5;
+            var initX = 20;
+            var initY = 20;
+            var selectWidth = oWidth - initX;
+            var selectHeight = oHeight - initY;
+            var sw = (selectWidth*ratio).toFixed(), //pic showArea
+                sh = (selectHeight*ratio).toFixed(),
+                sx = ((initX*ratio)+(selectWidth-sw)/2).toFixed(),
+                sy = ((initY*ratio)+(selectHeight-sh)/2).toFixed(),
+                dx = 0,
+                dy = 0,
+                dw = selectWidth,
+                dh = selectHeight;
+            c_context.drawImage(this,20,20,(oWidth-20),(oHeight-20),dx,dy,(oWidth-20),(oHeight-20));
+            text_c_context.drawImage(this,sx,sy,sw,sh,dx,dy,dw,dh);
+            text_c_context1.drawImage(this,142,79,sw,sh,dx,dy,(oWidth-20),(oHeight-20));
+            console.log(oWidth);
+            console.log(oHeight);
+            console.log(sx);
+            console.log(sy);
+            console.log(sw);
+            console.log(sh);
+        }
+
+    });
+
+
+
+</script>
+</body>
+ </html>

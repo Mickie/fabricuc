@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+        <!-- demonstrate drawRectangle -->
+<html>
+<head>
+    <meta charset="utf-8">
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <style>
+        html,body{
+            margin:0;
+        }
+    </style>
+</head>
+<body>
+<div id="container" style="position:absolute;width:500px;height:300px;left:0;top:0;border:1px solid black;">
+    <canvas id="canvas" width="500" height="300"></canvas>
+</div>
+<canvas id = "tmpCanvas" width ="500" height ="300" style="position:absolute;left:100px;top:410px;border:1px solid black;display:none;"></canvas>
+<canvas id = "tmpCanvas1" width ="500" height ="300" style="position:absolute;left:100px;top:720px;border:1px solid black;display:none;"></canvas>
+<script>
+    var c= document.querySelector('#canvas');
+    var ctx = c.getContext('2d');
+    var mousedown={};
+    var isdrag = false;
+    var drawSurface;
+
+    function drawGrid(xStep,yStep){
+        var c_width= ctx.canvas.width,
+            c_height= ctx.canvas.height,
+            LINEWIDTH=0.5;
+        ctx.strokeStyle="lightgray";
+        ctx.lineWidth = LINEWIDTH;
+
+        for( var i= 0.5;i<c_width;i+=xStep){
+            ctx.moveTo(i,0);
+            ctx.lineTo(i,c_height);
+            ctx.stroke();
+        }
+        for( var i= 0.5;i<c_height;i+=yStep){
+            ctx.moveTo(0,i);
+            ctx.lineTo(c_width,i);
+            ctx.stroke();
+        }
+
+
+    }
+    c.addEventListener('mousedown',downHandler,false);
+    c.addEventListener('mousemove',moveHandler,false);
+    c.addEventListener('mouseup',upHandler,false);
+
+    function downHandler(e){
+        mousedown.x= e.clientX;
+        mousedown.y = e.clientY;
+        isdrag = true;
+        e.preventDefault();
+        saveDrawSurface();
+    }
+
+    function moveHandler(e){
+      if(isdrag){
+       var loc = {};
+        loc.x= e.clientX;
+        loc.y = e.clientY;
+        restoreDrawSurface();
+        drawGuidLines(loc.x,loc.y);
+        drawRecShape(loc);
+      }
+      e.preventDefault();
+    }
+
+    function upHandler(e){
+        isdrag = false;
+        e.preventDefault();
+        restoreDrawSurface();
+        var loc = {};
+        loc.x= e.clientX;
+        loc.y = e.clientY;
+        drawRecShape(loc);
+    }
+
+    function saveDrawSurface(){
+        drawSurface = ctx.getImageData(0,0,ctx.canvas.width,ctx.canvas.height);
+    }
+
+    function restoreDrawSurface(){
+        ctx.putImageData(drawSurface,0,0);
+    }
+
+    function drawRecShape(loc){
+        var width = Math.abs(loc.x-mousedown.x);
+        var height = Math.abs(loc.y-mousedown.y);
+        drawLine(loc);
+        updateRecPos(loc);
+        drawRect(loc,width,height);
+
+    }
+
+    function drawRect(loc,width,height){
+        var strokeStyle ="red";
+        var lineWidth = 2;
+        ctx.beginPath();
+        ctx.rect(loc.x,loc.y,width,height);
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+        ctx.closePath();
+    }
+
+    function updateRecPos(loc){
+        loc.x = (loc.x < mousedown.x)?loc.x:mousedown.x;
+        loc.y = (loc.y < mousedown.y)?loc.y:mousedown.y;
+    }
+
+    function drawLine(loc){
+        ctx.beginPath();
+        ctx.moveTo(mousedown.x,mousedown.y);
+        //ctx.lineTo(loc.x,loc.y);
+        ctx['lineTo'](loc.x,loc.y);
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.closePath();
+    }
+
+    function drawGuidLines(x,y){
+        var lineStyle = "lightGray";
+        var lineWidth = 0.5;
+        drawHorizontal(x);
+        drawVertical(y);
+
+        //private
+        function drawHorizontal(x){
+            ctx.beginPath();
+            ctx.moveTo(x+0.5,0);
+            ctx.lineTo(x+0.5,ctx.canvas.height);
+            ctx.strokeStyle = lineStyle;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+           // ctx.closePath();
+        }
+
+        function drawVertical(y){
+            ctx.beginPath();
+            ctx.moveTo(0,y+0.5);
+            ctx.lineTo(ctx.canvas.width,y+0.5);
+            ctx.strokeStyle= lineStyle;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+           // ctx.closePath();
+
+        }
+    }
+
+    $(function(){
+        drawGrid(10,10);
+    })
+</script>
+</body>
+</html>

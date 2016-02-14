@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="js/fabric.js"></script>
+</head>
+<!-- demonstrate single rectangular drag & move eventHandler using fabric js-->
+<!-- codes not be tested -->
+<body>
+    <canvas id="myCanvas"></canvas>
+    <script type="text/javascript">
+       var FabCanvas = function (canvasId){
+           this.canvas = new fabric.Canvas(canvasId,{selection:false});
+           this.bounds={};
+           this.rect = {};
+       };
+       FabCanvas.Prototype = {
+           init: function (width,height){
+               this.canvas.setWidth(width);
+               this.canvas.setHeight(height);
+               this.bounds = {lx:0,ly:0,width:width,height:height};
+               this.canvas.addEventListener('object:moving',this.delegate(this.moveHandler,this),false);
+               this.canvas.addEventListener('object:scaling',this.delegate(this.scaleHandler,this),false);
+               this.canvas.addEventListener('mouse:down mouse:move mouse:up',this.delegate(this.mouseHandler,this),false);
+           },
+           addRec:function(rectWidth,rectHeight,rectX,rectY){
+               this.rect = new fabric.Rect({
+                   width:rectWidth,
+                   height:rectHeight,
+                   left:rectX,
+                   top:rectY,
+                   fill:'transparent',
+                   hasRotatingPoint:false,
+                   borderColor:'black',
+                   cornerColor:'blue',
+                   cornerSize:24,
+                   transparentCorners:false,
+                   borderScaleFactor:1,
+                   targetFindTolerance:50,
+                   skipTargetFind:true,
+                   minScaleLimit:0.2,
+                   borderOpacityWhenMoving:1
+               });
+               this.rect.setControlVisible('tl',false).setControlVisible('tr',false).setControlVisible('bl',false).setControlVisible('br',false);
+               this.canvas.add(this.rect).calcOffset();
+               this.canvas.setActiveObject(this.rect);
+               this.canvas.renderAll();
+           },
+           moveHandler:function(){
+               var boundsLeft = this.bounds.lx;
+               var boundsTop = this.bounds.ly;
+               var boundsRight = this.bounds.width-this.bounds.lx -1;
+               var boundsBtn = this.bounds.height-this.bounds.ly-1;
+               var left = this.rect.left;
+               var top = this.rect.top;
+               var width = this.rect.getWidth();
+               var height = this.rect.getHeight();
+               this.rect.setLeft(Math.min(Math.max(left,boundsLeft),boundsRight-width));
+               this.rect.setTop(Math.min(Math.max(top,boundsTop),boundsBtn-height));
+           },
+           scaleHandler:function(){
+               var boundsLeft = this.bounds.lx;
+               var boundsTop = this.bounds.ly;
+               var boundsRight = this.bounds.width-this.bounds.lx -1;
+               var boundsBtn = this.bounds.height-this.bounds.ly-1;
+               var left = this.rect.getLeft();
+               var top = this.rect.getTop();
+               var width = this.rect.getWidth();
+               var height = this.rect.getHeight();
+               var right = left+width;
+               var btn = top + height;
+               if(left<boundsLeft){
+                   this.rect.left = boundsLeft;
+                   this.rect.width = width;
+                   this.rect.scaleX = (width+left)/width;
+               }
+               if(top<boundsTop){
+                   this.rect.top=boundsTop;
+                   this.rect.height=height;
+                   rect.scaleY=(height+top)/height;
+               }
+               if(right>boundsRight){
+                   this.rect.width= boundsRight-this.rect.left;
+                   this.rect.scaleX=(width)/width;
+               }
+               if(btn>boundsBtn){
+                   this.rect.height=boundsBtn-this.rect.top;
+                   this.rect.scaleY=(height)/height;
+               }
+           },
+           mouseHandler:function(){
+                this.setTarget();
+           },
+           setTarget:function(){
+               this.canvas.setActiveObject(this.rect);
+               this.canvas.renderAll();
+           },
+           delegate:function(fn,obj){
+               return function(){
+                   fn.apply(obj,arguments);
+               }
+           }
+       }
+    </script>
+</body>
+</html>

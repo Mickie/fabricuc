@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<!-- demonstrate poly based on rect radius -->
+<html>
+<head>
+    <meta charset="utf-8">
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <style>
+        html,body{
+            margin:0;
+        }
+    </style>
+</head>
+<body>
+<div id="container" style="position:absolute;width:500px;height:300px;left:0;top:0;border:1px solid black;">
+    <canvas id="canvas" width="500" height="300"></canvas>
+</div>
+<div id="ctrl" style="position:absolute;top:320px;left:0">
+    <label>strokeStyle
+    <select id="strokeStyle">
+        <option value="green">green</option>
+        <option value="red">red</option>
+        <option value="yellow">yellow</option>
+        <option value="blue">blue</option>
+    </select>
+    </label>
+    <label>fillStyle
+    <select id="fillStyle">
+        <option value="green">green</option>
+        <option value="red">red</option>
+        <option value="yellow">yellow</option>
+        <option value="blue">blue</option>
+    </select>
+    </label>
+    <label>sides
+    <select id="sides">
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
+        <option value="10">10</option>
+        <option value="11">11</option>
+    </select>
+    </label>
+    <label>startAngle
+    <select id="startAngle">
+        <option value="45">45</option>
+        <option value="60">60</option>
+        <option value="75">75</option>
+        <option value="90">90</option>
+    </select>
+    </label>
+    <label>fill
+        <input type="checkbox" id="fill" checked>
+    </label>
+</div>
+<canvas id = "tmpCanvas" width ="500" height ="300" style="position:absolute;left:100px;top:410px;border:1px solid black;display:none;"></canvas>
+<canvas id = "tmpCanvas1" width ="500" height ="300" style="position:absolute;left:100px;top:720px;border:1px solid black;display:none;"></canvas>
+<script>
+    var c= document.querySelector('#canvas');
+    var ctx = c.getContext('2d');
+    var mousedown={};
+    var isdrag = false;
+    var drawSurface;
+    var fillStyle = document.querySelector('#fillStyle');
+    var strokeStyle = document.querySelector('#strokeStyle');
+    var sides = document.querySelector('#sides');
+    var startAngle = document.querySelector('#startAngle');
+    var fill = document.querySelector('#fill');
+
+    function drawGrid(xStep,yStep){
+        var c_width= ctx.canvas.width,
+                c_height= ctx.canvas.height,
+                LINEWIDTH=0.5;
+        ctx.strokeStyle="lightgray";
+        ctx.lineWidth = LINEWIDTH;
+
+        for( var i= 0.5;i<c_width;i+=xStep){
+            ctx.moveTo(i,0);
+            ctx.lineTo(i,c_height);
+            ctx.stroke();
+        }
+        for( var i= 0.5;i<c_height;i+=yStep){
+            ctx.moveTo(0,i);
+            ctx.lineTo(c_width,i);
+            ctx.stroke();
+        }
+
+
+    }
+    c.addEventListener('mousedown',downHandler,false);
+    c.addEventListener('mousemove',moveHandler,false);
+    c.addEventListener('mouseup',upHandler,false);
+
+    function downHandler(e){
+        mousedown.x= e.clientX;
+        mousedown.y = e.clientY;
+        isdrag = true;
+        e.preventDefault();
+        saveDrawSurface();
+    }
+
+    function moveHandler(e){
+        if(isdrag){
+            var loc = {};
+            loc.x= e.clientX;
+            loc.y = e.clientY;
+            restoreDrawSurface();
+            drawGuidLines(loc.x,loc.y);
+            drawLine(loc);
+        }
+        e.preventDefault();
+    }
+
+    function upHandler(e){
+        isdrag = false;
+        e.preventDefault();
+        restoreDrawSurface();
+        var loc = {};
+        loc.x= e.clientX;
+        loc.y = e.clientY;
+        console.log(loc.x+' '+loc.y);
+        var radius = Math.sqrt(Math.pow((mousedown.x-loc.x),2)+Math.pow((mousedown.y-loc.y),2)).toFixed();
+        var side = sides.value;
+        var angle = parseInt(startAngle.value*Math.PI/180);
+        console.log('radius '+radius+' side '+side+' angle '+angle);
+        drawPoly(mousedown,radius,side,angle);
+    }
+
+
+    function drawPoly(circlePoint,radius,side,angle){
+        var circleX=circlePoint.x,
+            circleY=circlePoint.y;
+            path = getPolyPath(circleX,circleY,radius,side,angle),
+            lineWidth = 1;
+        ctx.strokeStyle = strokeStyle.value;
+        ctx.fillStyle = fillStyle.value;
+        ctx.beginPath();
+        ctx.moveTo(path[0].x,path[0].y);
+        for(var i=1;i<path.length;i++){
+            ctx.lineTo(path[i].x,path[i].y);
+        }
+        ctx.closePath();//!important
+        ctx.stroke();
+        console.log(fill.checked);
+        if(fill.checked){
+            ctx.fill();
+        }
+    }
+
+    function getPolyPath(circleX,circleY,radius,side,angle){
+         var startAngle = angle || 0;
+         var points = [];
+         for(var i =0;i<side;i++){
+             var point = {};
+             point.x = (circleX+radius*Math.cos(startAngle)).toFixed();
+             point.y = (circleY-radius*Math.sin(startAngle)).toFixed();
+             points.push(point);
+             startAngle += 2*Math.PI/side;
+         }
+        return points;
+    }
+
+
+    function saveDrawSurface(){
+        drawSurface = ctx.getImageData(0,0,ctx.canvas.width,ctx.canvas.height);
+    }
+
+    function restoreDrawSurface(){
+        ctx.putImageData(drawSurface,0,0);
+    }
+
+    function updateRecPos(loc){
+        loc.x = (loc.x < mousedown.x)?loc.x:mousedown.x;
+        loc.y = (loc.y < mousedown.y)?loc.y:mousedown.y;
+    }
+
+    function drawLine(loc){
+        ctx.beginPath();
+        ctx.moveTo(mousedown.x,mousedown.y);
+        ctx.lineTo(loc.x,loc.y);
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.closePath();
+    }
+
+    function drawGuidLines(x,y){
+        var lineStyle = "lightGray";
+        var lineWidth = 0.5;
+        drawHorizontal(x);
+        drawVertical(y);
+
+        //private
+        function drawHorizontal(x){
+            ctx.beginPath();
+            ctx.moveTo(x+0.5,0);
+            ctx.lineTo(x+0.5,ctx.canvas.height);
+            ctx.strokeStyle = lineStyle;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+        }
+
+        function drawVertical(y){
+            ctx.beginPath();
+            ctx.moveTo(0,y+0.5);
+            ctx.lineTo(ctx.canvas.width,y+0.5);
+            ctx.strokeStyle= lineStyle;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+        }
+    }
+
+    $(function(){
+        drawGrid(10,10);
+
+    })
+</script>
+</body>
+</html>
